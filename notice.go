@@ -4,6 +4,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"fmt"
 )
 
 type Event uint32
@@ -40,13 +41,20 @@ type Notice interface {
 	Time() time.Time
 	Type() Event
 	More() interface{}
+	fmt.Stringer
 }
+
+
 
 type fileSystemNotice struct {
 	path      string
 	event     Event
 	fileinfo  os.FileInfo
 	timestamp time.Time
+}
+
+func (f *fileSystemNotice) String() string{
+	return fmt.Sprintf("{%v : %v}",f.path, f.event)
 }
 
 func (f *fileSystemNotice) Name() string {

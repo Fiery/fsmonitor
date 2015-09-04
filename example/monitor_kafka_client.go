@@ -14,7 +14,7 @@ import (
 	"os/signal"
 	"strings"
 	"time"
-	"monitor"
+	"github.com/Fiery/fsmonitor"
 
 	"github.com/Shopify/sarama"
 )
@@ -46,7 +46,7 @@ func main() {
 	if *verbose {
 		sarama.Logger = log.New(os.Stdout, "[Sarama] ", log.LstdFlags)
 
-		monitor.Logger = log.New(os.Stdout, "[Monitor] ", log.LstdFlags)
+		fsmonitor.Logger = log.New(os.Stdout, "[Monitor] ", log.LstdFlags)
 	}
 
 
@@ -60,7 +60,7 @@ func main() {
 
 	noticeLogger = *newAsyncProducer(tlsConfig, strings.Split(*brokers,","))
 
-	m:=monitor.New()
+	monitor:=fsmonitor.New()
 
 	/* Handles Ctrl+C signal */
 	go func() {
@@ -68,16 +68,16 @@ func main() {
 		signal.Notify(sc, os.Interrupt)
 		select{
 		case <-sc:
-			if err := m.Close(); err != nil {
+			if err := monitor.Close(); err != nil {
 				Logger.Fatalln("Error closing the monitor", err)
 			}
 		}
 	}()
 
-	go m.Watch(*address, strings.Split(*pattern,","), time.Duration(*sleep)*time.Second, monitor.FileCreate)
+	go monitor.Watch(*address, strings.Split(*pattern,","), time.Duration(*sleep)*time.Second, fsmonitor.FileCreate)
 
 	/* Notice channel will be guaranteed closed after m.Close returns */
-	for n:= range m.Notices(){
+	for n:= range monitor.Notices(){
 		logging(forwarding()).Process(n)
 	}
 
@@ -123,7 +123,7 @@ func createTLSConfiguration() (t *tls.Config) {
 
 
 func forwarding(pl ...ProcessLogic) ProcessLogic {
-	return eventProcessor(func(n monitor.Notice) {
+	return eventProcessor(func(n fsmonitor.Notice) {
 
 		for _, p := range pl {
 			p.Process(n)
@@ -150,7 +150,7 @@ func forwarding(pl ...ProcessLogic) ProcessLogic {
 
 func logging(pl ...ProcessLogic) ProcessLogic {
 
-	return eventProcessor(func(n monitor.Notice) {
+	return eventProcessor(func(n fsmonitor.Notice) {
 		//started := time.Now()
 
 		for _, p := range pl {
@@ -174,13 +174,13 @@ func logging(pl ...ProcessLogic) ProcessLogic {
 }
 
 type ProcessLogic interface {
-	Process(monitor.Notice)
+	Process(fsmonitor.Notice)
 }
 
-type eventProcessor func(monitor.Notice)
+type eventProcessor func(fsmonitor.Notice)
 
-/* Implements monitor.ProcessLogic */
-func (ep eventProcessor) Process(n monitor.Notice) {
+/* Implements fsmonitor.ProcessLogic */
+func (ep eventProcessor) Process(n fsmonitor.Notice) {
 	ep(n)
 }
 

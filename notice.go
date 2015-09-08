@@ -1,3 +1,5 @@
+// A non-blocking monitoring service concurrently notifies file system changes by periodically scanning the file system
+// Changed notices can be filtered by event type (create, update, remove, etc.) or the resource id
 package fsmonitor
 
 import (
@@ -7,6 +9,7 @@ import (
 	"fmt"
 )
 
+// Event defines different types of changes 
 type Event uint32
 
 const (
@@ -16,7 +19,7 @@ const (
 	FileRename
 )
 
-/* String implements fmt.Stringer interface. */
+// Implements fmt.Stringer
 func (e Event) String() string {
 	var s []string
 	for _, strmap := range []map[Event]string{eventName} {
@@ -36,8 +39,13 @@ var eventName = map[Event]string{
 	FileRename: "notice.FileRename",
 }
 
+
+// Notice abstracts basic information needed notification
+// Also include fmt.Stringer to simplify inspecting
 type Notice interface {
+	// Considered to be uid
 	Name() string
+	// Timestamp when created
 	Time() time.Time
 	Type() Event
 	More() interface{}
@@ -45,7 +53,7 @@ type Notice interface {
 }
 
 
-
+// Implements Notice, uses file name as Notice.Name
 type fileSystemNotice struct {
 	path      string
 	event     Event

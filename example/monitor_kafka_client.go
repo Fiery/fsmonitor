@@ -14,8 +14,8 @@ import (
 	"os/signal"
 	"strings"
 	"time"
-	"github.com/Fiery/fsmonitor"
 
+	"github.com/Fiery/fsmonitor"
 	"github.com/Shopify/sarama"
 )
 
@@ -27,10 +27,13 @@ var (
 
 	verbose   = flag.Bool("verbose", false, "Turn on Sarama logging")
 	brokers   = flag.String("brokers", os.Getenv("KAFKA_PEERS"), "The Kafka brokers to connect to, as a comma separated list")
+
 	address   = flag.String("address", ".", "File system path to be monitored")
 	pattern   = flag.String("pattern", "", "File patterns of interest")
 
+	watcher = flag.String("watch", "path", "monitor watching type")
 	timeout  = flag.Int("timeout", 10000, "Timeout for file operations")
+
 	sleep = flag.Int("sleep", 10, "Checking period in second")
 	topic = flag.String("topic","monitor", "Kafka topics to be stored")
 
@@ -38,7 +41,7 @@ var (
 
 var Logger = log.New(os.Stdout, "[Main] ", log.LstdFlags)
 var noticeSender sarama.SyncProducer
-var	noticeLogger sarama.AsyncProducer
+var noticeLogger sarama.AsyncProducer
 
 func main() {
 
@@ -60,7 +63,12 @@ func main() {
 
 	noticeLogger = *newAsyncProducer(tlsConfig, strings.Split(*brokers,","))
 
-	monitor:=fsmonitor.New()
+	monitor:=fsmonitor.New(*address, strings.Split(*pattern, ","), *watcher)
+
+	Logger.Printf("Starting monitoring file system changes on %s", *address)
+
+	go monitor.Start(time.Duration(*sleep)*time.Second, fsmonitor.FileCreate)
+
 
 	/* Handles Ctrl+C signal */
 	go func() {
@@ -68,13 +76,11 @@ func main() {
 		signal.Notify(sc, os.Interrupt)
 		select{
 		case <-sc:
-			if err := monitor.Close(); err != nil {
+			if err := monitor.Stop(); err != nil {
 				Logger.Fatalln("Error closing the monitor", err)
 			}
 		}
 	}()
-
-	go monitor.Watch(*address, strings.Split(*pattern,","), time.Duration(*sleep)*time.Second, fsmonitor.FileCreate)
 
 	/* Notice channel will be guaranteed closed after m.Close returns */
 	for n:= range monitor.Notices(){

@@ -1,3 +1,5 @@
+// A non-blocking monitoring library concurrently notifies file system changes by periodically scanning the file system
+// Changed notices can be filtered by event type (create, update, remove, etc.) or the resource id
 package fsmonitor
 
 import (
@@ -13,6 +15,7 @@ const (
 	notice_buffer_length = 1000
 )
 
+// Coordinates Watcher and initializes enviorment
 type Monitor struct {
 	notices chan Notice
 	closing chan chan error
@@ -22,6 +25,8 @@ type Monitor struct {
 
 var Logger = log.New(ioutil.Discard, "[Monitor] ", log.LstdFlags)
 
+
+// Starts Wathcer goroutine and loops until internal channels closes
 func (m *Monitor) Start(sleep time.Duration, event ...Event){
 
 	var returning chan error
@@ -85,9 +90,13 @@ func (m *Monitor) Start(sleep time.Duration, event ...Event){
 	}
 }
 
+
+// Returns channel of all notices, which to be closed when calling Close()
 func (m *Monitor) Notices()  (<-chan Notice){
 	return m.notices
 }
+
+// Safely closes all internal channels and gracefully terminates all goroutines
 func (m *Monitor) Stop() error {
 	var err error
 	stopper := make(chan error)
@@ -107,6 +116,7 @@ func (m *Monitor) Stop() error {
 	return err
 }
 
+// Creates specified Watcher and include it in returned Monitor instance
 func New(address string, pattern []string, watcher interface{}) *Monitor {
 
 	/* pattern filtering, return fatal status when pattern doesn't compile correctly. */

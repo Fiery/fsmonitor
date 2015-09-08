@@ -1,3 +1,5 @@
+// A non-blocking monitoring service concurrently notifies file system changes by periodically scanning the file system
+// Changed notices can be filtered by event type (create, update, remove, etc.) or the resource id
 package fsmonitor
 
 import (
@@ -8,15 +10,19 @@ import (
 	"regexp"
 )
 
+// Watcher abstracts logics of discovering changes within the given file system
 type Watcher interface{
-	/* Requires to return a nested channel of Notice and a channel of error
-	 * nested Notice channel is send-only of send-only, giving Monitor fully control
+	/* nested Notice channel is send-only of send-only, giving Monitor fully control
 	 * error channel is receive-only, Watcher keep it fully controllable
 	 */
 
+	// Returns internal controlling channels between Monitor and Watcher
+	// Runs discovering logic once every time.Tick on given resource handle
 	Watch() (chan<- chan<- Notice, <-chan error)
 }
 
+
+// Implements Watcher based on filepath.Walk
 type pathScanner struct{
 	address string
 	pattern []regexp.Regexp
@@ -24,11 +30,10 @@ type pathScanner struct{
 
 }
 
-/* Traverses the given directory and sub-directories and sends changes since last check */
+// Traverses the given directory and sub-directories and sends changes since last check
 func (s *pathScanner) Watch() (chan<- chan<- Notice, <-chan error) {
 
-	/*
-	 * nested channel to coordinate Monitor and Watcher during termination
+	/* nested channel to coordinate Monitor and Watcher during termination
 	 * Declared as channel of send-only channel as golang doesn't do 
 	 * implicit conversion for inner channel type, though a regular channel will
 	 * be converted to a send-only/receive-only channel when you send it 
@@ -124,7 +129,7 @@ func (s *pathScanner) Watch() (chan<- chan<- Notice, <-chan error) {
 	return ncc, errors
 }
 
-
+// Implements Watcher by loading in a specifically formatted text as virtual file system
 type fileScanner struct{
 	address string
 	pattern []regexp.Regexp
@@ -132,7 +137,7 @@ type fileScanner struct{
 
 }
 
-/* Traverses the given directory and sub-directories and sends changes since last check */
+// Reads the listing file, compare and sends changes since last check
 func (s *fileScanner) Watch() (ncc chan<- chan<- Notice, errors <-chan error) {
 	return
 }

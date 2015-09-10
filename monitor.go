@@ -1,5 +1,5 @@
-// A non-blocking monitoring library concurrently notifies file system changes by periodically scanning the file system
-// Changed notices can be filtered by event type (create, update, remove, etc.) or the resource id
+// Package fsmonitor is a non-blocking monitoring library concurrently notifies file system changes by periodically scanning the file system. 
+// Changed notices can be filtered by event type (create, update, remove, etc.) or by resource names.
 package fsmonitor
 
 import (
@@ -15,7 +15,7 @@ const (
 	notice_buffer_length = 1000
 )
 
-// Coordinates Watcher and initializes enviorment
+// Monitor initializes environment, coordinates with Watchers and collects events.
 type Monitor struct {
 	notices chan Notice
 	closing chan chan error
@@ -26,7 +26,7 @@ type Monitor struct {
 var Logger = log.New(ioutil.Discard, "[Monitor] ", log.LstdFlags)
 
 
-// Starts Wathcer goroutine and loops until internal channels closes
+// Start starts Wathcer goroutine and loops until internal channels closes.
 func (m *Monitor) Start(sleep time.Duration, event ...Event){
 
 	var returning chan error
@@ -64,6 +64,7 @@ func (m *Monitor) Start(sleep time.Duration, event ...Event){
 				}
 			}
 		/* use error channel to indicate accomplishment of every check from Watcher */
+		// still selectable after closing errorCheck, even without ok check
 		case err , ok:= <-errorCheck:
 			if !ok{
 				/* scan() closes status channel, which means it returns due to close of channel of notice channel */
@@ -91,12 +92,12 @@ func (m *Monitor) Start(sleep time.Duration, event ...Event){
 }
 
 
-// Returns channel of all notices, which to be closed when calling Close()
+// Notices returns channel of all notices, which to be closed when calling Close().
 func (m *Monitor) Notices()  (<-chan Notice){
 	return m.notices
 }
 
-// Safely closes all internal channels and gracefully terminates all goroutines
+// Stop safely closes all internal channels and gracefully terminates all goroutines.
 func (m *Monitor) Stop() error {
 	var err error
 	stopper := make(chan error)
@@ -116,11 +117,11 @@ func (m *Monitor) Stop() error {
 	return err
 }
 
-// Creates specified Watcher and include it in returned Monitor instance
+// New creates specified Watcher and include it in returned Monitor instance.
 func New(address string, pattern []string, watcher interface{}) *Monitor {
 
 	/* pattern filtering, return fatal status when pattern doesn't compile correctly. */
-	var patexp = make([]regexp.Regexp, 0)
+	var patexp = make([]regexp.Regexp, len(pattern), len(pattern))
 	for _, pat := range pattern {
 		if exp, err := regexp.Compile(pat); err != nil {
 

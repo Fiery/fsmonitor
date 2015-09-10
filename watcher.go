@@ -1,5 +1,3 @@
-// A non-blocking monitoring service concurrently notifies file system changes by periodically scanning the file system
-// Changed notices can be filtered by event type (create, update, remove, etc.) or the resource id
 package fsmonitor
 
 import (
@@ -10,7 +8,7 @@ import (
 	"regexp"
 )
 
-// Watcher abstracts logics of discovering changes within the given file system
+// Watcher abstracts logics of discovering changes within the given file system.
 type Watcher interface{
 	/* nested Notice channel is send-only of send-only, giving Monitor fully control
 	 * error channel is receive-only, Watcher keep it fully controllable
@@ -22,7 +20,7 @@ type Watcher interface{
 }
 
 
-// Implements Watcher based on filepath.Walk
+// pathScanner implements Watcher based on filepath.Walk.
 type pathScanner struct{
 	address string
 	pattern []regexp.Regexp
@@ -30,7 +28,10 @@ type pathScanner struct{
 
 }
 
-// Traverses the given directory and sub-directories and sends changes since last check
+// Watch traverses the given directory and sub-directories and sends changes since last check.
+// Note: no need to use mutex is because the design is to 
+// run Watch() every time.Tick duration AFTER every execution of Watch()
+// means Watch() must finishes in order to trigger next time.Tick()
 func (s *pathScanner) Watch() (chan<- chan<- Notice, <-chan error) {
 
 	/* nested channel to coordinate Monitor and Watcher during termination
@@ -129,7 +130,7 @@ func (s *pathScanner) Watch() (chan<- chan<- Notice, <-chan error) {
 	return ncc, errors
 }
 
-// Implements Watcher by loading in a specifically formatted text as virtual file system
+// fileScanner implements Watcher by loading in a specifically formatted text as virtual file system.
 type fileScanner struct{
 	address string
 	pattern []regexp.Regexp
@@ -137,7 +138,7 @@ type fileScanner struct{
 
 }
 
-// Reads the listing file, compare and sends changes since last check
+// Watch reads the listing file, compare and sends changes since last check.
 func (s *fileScanner) Watch() (ncc chan<- chan<- Notice, errors <-chan error) {
 	return
 }
